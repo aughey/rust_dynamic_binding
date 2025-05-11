@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 use rust_dynamic_binding::DynamicCallable;
 
@@ -11,6 +13,48 @@ fn function_that_takes_int_returns_string(x: &i32) -> String {
 
 fn two_int_to_string(x: &i32, y: &i32) -> String {
     format!("{} {}", x, y)
+}
+
+fn add_int(x: &i32, y: &i32) -> i32 {
+    x + y
+}
+fn add_float(x: &f32, y: &f32) -> f32 {
+    x + y
+}
+fn multiply_int(x: &i32, y: &i32) -> i32 {
+    x * y
+}
+fn multiply_float(x: &f32, y: &f32) -> f32 {
+    x * y
+}
+fn int_to_float(x: &i32) -> f32 {
+    *x as f32
+}
+fn float_to_int(x: &f32) -> i32 {
+    *x as i32
+}
+
+fn all_functions() -> HashMap<String, Box<dyn DynamicCallable>> {
+    let mut functions: HashMap<String, Box<dyn DynamicCallable>> = HashMap::new();
+    functions.insert("add_int".to_string(), Box::new(make_dynamic_2(add_int)));
+    functions.insert("add_float".to_string(), Box::new(make_dynamic_2(add_float)));
+    functions.insert(
+        "multiply_int".to_string(),
+        Box::new(make_dynamic_2(multiply_int)),
+    );
+    functions.insert(
+        "multiply_float".to_string(),
+        Box::new(make_dynamic_2(multiply_float)),
+    );
+    functions.insert(
+        "int_to_float".to_string(),
+        Box::new(make_dynamic_1(int_to_float)),
+    );
+    functions.insert(
+        "float_to_int".to_string(),
+        Box::new(make_dynamic_1(float_to_int)),
+    );
+    functions
 }
 
 fn main() -> Result<()> {
@@ -50,6 +94,31 @@ fn main() -> Result<()> {
     let result = dynamic_f4.call(&arguments.as_slice())?;
     let display_result = result.downcast_ref::<String>().unwrap();
     println!("Generic Result (4 args): {}", display_result);
+
+    test_graph_like_thing()?;
+
+    Ok(())
+}
+
+fn test_graph_like_thing() -> Result<()> {
+    let functions = all_functions();
+
+    // Simulate something like
+    // add_int(3, 2)      -> add_int
+    // multiply_int(3, 2) -/
+
+    let inputs: &[Box<dyn std::any::Any>] = &[Box::new(3), Box::new(2)];
+    // a = 3 + 2 = 5
+    let a = functions["add_int"].call(&inputs)?;
+    // b = 3 * 2 = 6
+    let b = functions["multiply_int"].call(&inputs)?;
+
+    // add the two
+    // c = 5 + 6 = 11
+    let c = functions["add_int"].call(&[a, b].as_slice())?;
+
+    let c_value = c.downcast_ref::<i32>().unwrap();
+    assert_eq!(*c_value, 11);
 
     Ok(())
 }
